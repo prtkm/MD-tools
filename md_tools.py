@@ -93,6 +93,7 @@ def read_msd(filepath, skiprows = 1):
     return t, msd
 
 
+
 def plot_msd(save = False, show = False, t = None, msd = None, t_units = 'ps', msd_units = '$\AA^{2}$', file = None, skiprows = 1, slope = True, T = None, f = 0.5):
     # TODO make this simpler!!!
     '''
@@ -144,3 +145,47 @@ def plot_msd(save = False, show = False, t = None, msd = None, t_units = 'ps', m
     
     if slope == True:
         return p, pint, se
+
+
+def get_D(slope, interval = None):
+
+    D = slope/6. * 1e-4 # in cm^2/s
+    
+    if interval == None: 
+        return D
+
+    else:
+        Dint =  np.array(int)/6. * 1e-4 
+        return D, Dint
+
+def get_conductivity(atoms, D = None, slope = None, interval = None,  species = 'all'):
+
+    if D == None:
+        if interval == None:
+            D = get_D(slope)
+        else:
+            D, Dint = get_D(slope, interval)
+
+    # Calculating Sigma
+
+    q = 1.60e-19 # Coulombs
+    
+    kb = 1.3806488e-23 # Boltzmann Constant in SI units
+
+    if species !='all': 
+        N = len([atom for atom in atoms if atom.symbol == species])
+    else:
+        N = len(atoms)
+
+    V = atoms.get_volume() * 1e-24 # cell volume in cm^{3}
+
+    prefactor = N/V * (q**2) /kb / T
+
+    sigma = prefactor * D
+
+    if interval == None: 
+        return sigma
+
+    else:
+        sigma_int = prefactor * Dint
+        return sigma, sigma_int
