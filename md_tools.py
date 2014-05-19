@@ -11,10 +11,13 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from pycse import regress
-import pymatgen as mg
-from pymatgen.io.zeoio import *
-from pymatgen.io.aseio import AseAtomsAdaptor as aseio
-from pymatgen.transformations.standard_transformations import OxidationStateRemovalTransformation as remox
+try:
+    import pymatgen as mg
+    from pymatgen.io.zeoio import *
+    from pymatgen.io.aseio import AseAtomsAdaptor as aseio
+    from pymatgen.transformations.standard_transformations import OxidationStateRemovalTransformation as remox
+except:
+    pass
 from ase.io import read
 from subprocess import Popen, PIPE
 
@@ -29,7 +32,7 @@ def cif2cssr(cif, remove = ['Li']):
     s = rem.apply_transformation(s)
     if remove != None:
         s.remove_species(remove)
-    
+
     try:
         cssr = ZeoCssr(s)
         cssr.write_file('{0}.cssr'.format(filename))
@@ -43,20 +46,20 @@ def find_channels(file, probe_radius = 0.5, accuracy = 'normal', rad_file = None
     Use zeo++ to find conducting channels in given structure- cif or cssr. Must specify zeo executable as $ZEO in .bashrc for this to work.
     '''
     filename, ext = file.split('.')
-    
+
     if ext == 'cif':
-        
+
         cssr = cif2cssr(file)
-        
+
         if cssr == None:
-            
+
             return None, None
-        
+
         file = '{0}.cssr'.format(filename)
-      
-          
+
+
     if accuracy !='high':
-        if rad_file == None:           
+        if rad_file == None:
             cmd = '$ZEO -chan {0} {1}'.format(probe_radius, file)
         else:
             cmd = '$ZEO -r {2} -chan {0} {1}'.format(probe_radius, file, rad_file)
@@ -65,13 +68,13 @@ def find_channels(file, probe_radius = 0.5, accuracy = 'normal', rad_file = None
             cmd = '$ZEO -ha -chan {0} {1}'.format(probe_radius, file)
         else:
             cmd = '$ZEO -ha -r {2} -chan {0} {1}'.format(probe_radius, file, rad_file)
-        
+
     p = Popen(cmd, shell =True, stdout =PIPE, stderr= PIPE)
     out, err = p.communicate()
     if err !='':
         raise Exception('\n\n{0}'.format(err))
 
-    f = open('{0}.chan'.format(filename), 'r')    
+    f = open('{0}.chan'.format(filename), 'r')
     lines = f.readlines()
 
     channels =  lines[0].split()[1]
@@ -80,7 +83,7 @@ def find_channels(file, probe_radius = 0.5, accuracy = 'normal', rad_file = None
         dimensionality = 0
 
     return int(channels), int(dimensionality)
-    
+
 def read_msd(filepath, skiprows = 1):
     '''
     This function reads a typical msd output file and returns t, msd
@@ -104,9 +107,9 @@ def plot_msd(save = False, show = False, t = None, msd = None, t_units = 'ps', m
           file = file to read from if t and msd are not specified
           slope = Turns slope on/off
           T = Temperature for legend
-          f = fraction of data to discard for equilibration  
+          f = fraction of data to discard for equilibration
     '''
-    
+
     if (t == None or msd == None):
         try:
             t, msd = read_msd(file, skiprows = skiprows)
@@ -119,8 +122,8 @@ def plot_msd(save = False, show = False, t = None, msd = None, t_units = 'ps', m
         plt.plot(t,msd)
     if slope == True:
         # Cutting out the equilibration data and using the rest to fit slope
-        t_cut = t[len(t)*f:]    
-        msd_cut= msd[len(t)*f:] 
+        t_cut = t[len(t)*f:]
+        msd_cut= msd[len(t)*f:]
 
         # Fitting using linear regression and 95 percent confidence intervals - p = [slope, intercept]
 
@@ -136,13 +139,13 @@ def plot_msd(save = False, show = False, t = None, msd = None, t_units = 'ps', m
 
     if T !=None:
         plt.legend()
-        
+
     if save != False:
         plt.savefig(save)
-    
+
     if show == True:
         plt.show()
-    
+
     if slope == True:
         return p, pint, se
 
@@ -150,12 +153,12 @@ def plot_msd(save = False, show = False, t = None, msd = None, t_units = 'ps', m
 def get_D(slope, interval = None):
 
     D = slope/6. * 1e-4 # in cm^2/s
-    
-    if interval == None: 
+
+    if interval == None:
         return D
 
     else:
-        Dint =  np.array(int)/6. * 1e-4 
+        Dint =  np.array(int)/6. * 1e-4
         return D, Dint
 
 def get_conductivity(atoms, D = None, slope = None, interval = None,  species = 'all'):
@@ -169,10 +172,10 @@ def get_conductivity(atoms, D = None, slope = None, interval = None,  species = 
     # Calculating Sigma
 
     q = 1.60e-19 # Coulombs
-    
+
     kb = 1.3806488e-23 # Boltzmann Constant in SI units
 
-    if species !='all': 
+    if species !='all':
         N = len([atom for atom in atoms if atom.symbol == species])
     else:
         N = len(atoms)
@@ -183,7 +186,7 @@ def get_conductivity(atoms, D = None, slope = None, interval = None,  species = 
 
     sigma = prefactor * D
 
-    if interval == None: 
+    if interval == None:
         return sigma
 
     else:
