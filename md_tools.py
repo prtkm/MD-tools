@@ -161,7 +161,7 @@ def get_D(slope, interval = None):
         Dint =  np.array(int)/6. * 1e-4
         return D, Dint
 
-def get_conductivity(atoms, D = None, slope = None, interval = None,  species = 'all'):
+def get_conductivity(atoms, T, D = None, slope = None, interval = None,  species = 'all'):
 
     if D == None:
         if interval == None:
