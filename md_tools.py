@@ -80,6 +80,22 @@ def find_channels(file, probe_radius = 0.5, accuracy = 'normal', rad_file = None
 
     return int(channels), int(dimensionality)
     
+
+def write_rad_file(d, filename):
+    '''
+    d = dict of element and ionic radius (element should ideally be charge decorated, but this is not necessary)
+    filename = file will be stored as <filename.rad>
+    '''
+    
+    file = ''
+    for key in d:
+        file+='{0} {1}\n'.format(key, d[key])
+
+    f = open('{0}.rad'.format(filename), 'w')
+    f.write(file)
+    f.close
+    return
+
 def read_msd(filepath, skiprows = 1):
     '''
     This function reads a typical msd output file and returns t, msd
