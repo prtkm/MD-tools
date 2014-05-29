@@ -23,6 +23,8 @@ def prepare_for_zeo(dir):
     Takes a directory of cif files and filters zeo++ usable files. Requires pymatgen.
     Creates new directories:
     ./ready - oxidation state decorated files for zeo++ to use.  
+    ./no-rad - structures with species having no corresponding ionic radii in pymatgen database
+    ./fails - structures which cannot be assigned oxidation states
     '''
 
     files = [file for file in os.listdir(dir) if file.endswith('cif')]
@@ -113,10 +115,10 @@ def cif2cssr(cif, remove = ['Li+']):
     return cssr
 
 
-def find_channel_size(file, accuracy = 'normal', rad_file = None, mass_file = None):
+def find_channel_size(file, accuracy = 'normal'):
 
     '''
-    Use zeo++ to find the largest free sphere.
+    Use zeo++ to find the largest free sphere. This must be run on a cif file in a directory prepapred for zeo++, i.e., with the radius file and the mass file.
     '''
 
     filename, ext = file.split('.')
@@ -130,21 +132,16 @@ def find_channel_size(file, accuracy = 'normal', rad_file = None, mass_file = No
             return None, None
         
         file = '{0}.cssr'.format(filename)
+    rad_file = '{0}.rad'.format(filename)
+    mass_file = '{0}.mass'.format(filename)
     # Make sure to leave a space on every addition to a command
     cmd = '$ZEO '   
 
     if accuracy == 'high':
         cmd+='-ha '
 
-    if nomass:
-        cmd+=  '-nomass '
-    elif not nomass and mass_file != None:
-        cmd+= '-m {0} '.format(mass_file)
-     
-    if rad_file != None:           
-        cmd += '-r {0} '.format(rad_file)
+    cmd+= '-m {0} -r {1} -res {2}'.format(mass_file, rad_file, file)
     
-    cmd += '-res {0} '.format(file)
 
     p = Popen(cmd, shell =True, stdout =PIPE, stderr= PIPE)
     out, err = p.communicate()
@@ -159,6 +156,7 @@ def find_channel_size(file, accuracy = 'normal', rad_file = None, mass_file = No
 
 def find_channels(file, probe_radius = 0.5, accuracy = 'normal', rad_file = None):
 
+# TODO this needs to be rewritten for mass input
     '''
     Use zeo++ to find conducting channels in given structure- cif or cssr. Must specify zeo executable as $ZEO in .bashrc for this to work.
     '''
