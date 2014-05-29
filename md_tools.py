@@ -5,17 +5,94 @@
 # Read QE output
 # Plot thermostat
 
-# Get slope
-
 import numpy as np
 import matplotlib.pyplot as plt
 from pycse import regress
 import pymatgen as mg
 from pymatgen.io.zeoio import *
 from pymatgen.io.aseio import AseAtomsAdaptor as aseio
-from pymatgen.transformations.standard_transformations import OxidationStateRemovalTransformation as remox
 from ase.io import read
 from subprocess import Popen, PIPE
+from pymatgen.transformations.standard_transformations import AutoOxiStateDecorationTransformation as oxi
+import os
+
+
+def prepare_for_zeo(dir):
+
+    '''
+    Takes a directory of cif files and filters zeo++ usable files. Requires pymatgen.
+    Creates new directories:
+    ./ready - oxidation state decorated files for zeo++ to use.  
+    '''
+
+    files = [file for file in os.listdir(dir) if file.endswith('cif')]
+    
+ 
+    d = {} # Dictionary of the form d[<filename>]['struct'], d[<filename>]['properties']
+           
+    fails, no_ox = [], []
+
+    for file in files:
+        
+        # reading to pymatgen structure object
+        s = mg.read_structure('{1}/{0}'.format(file, dir))
+        
+        # AutoOxidationStateDecorationObject
+        ox = oxi()
+
+        try:
+            # Oxidation state decorated structure
+            s_ox = ox.apply_transformation(s)
+
+            # Saving structure to dictionary
+            d[file]['struct']  = s_ox
+
+            # List of unique elements in the structure
+            species = set(s_ox.species)
+
+            radii = dict((str(sp), float(sp.ionic_radius)) for sp in species)
+            masses = dict((str(sp), float(sp.atomic_mass)) for sp in species)
+            d[file]['radii'] = radii
+            d[file]['masses'] = masses
+            for sp in species:
+         
+                if sp.ionic_radius == None
+                # These are charge decorated files which have an assigned oxidation state but no radius in pymatgen corresponding to that state
+                # These files will have to be analyzed later, possibly using the crystal radius from the shannon table
+                no_rad.append(file)
+                break
+
+        except:
+            # These are files that cannot be assigned oxidation states - bond valence fails either due to disorder or is unable to find a charge neutral state       
+            fails.append(file)
+            d[file]['struct'] = s
+            d[file]['radii'] = None
+            d[file]['masses'] = None
+
+    # This is a list of usable files for zeo++
+    ready = list(set(files).difference(set(nones)).difference(set(undecorated)))
+
+    for subd in ['ready', 'no-rad', 'fails']:
+
+        # This creates subdirectories if not already present
+        if not os.path.isdir('{0}/{1}'.format(dir, subd)):
+            os.makedirs('{0}/{1}'.format(dir, subd))
+
+    # Writing files into respective sub - directories
+    for file in ready:
+        mg.write_structure(d[file]['struct'], '{0}/ready/{1}'.format(dir, file))
+        # write the radius and the mass files also
+        filename = file.split('.cif')[0]
+        write_rad_file(d[file]['radii'],'{0}/ready'.format(dir), filename)
+        write_mass_file(d[file]['masses'],'{0}/ready'.format(dir), filename) 
+
+    for file in no_rad:
+        mg.write_structure(d[file]['struct'], '{0}/no-rad/{1}'.format(dir,file))
+
+    for file in fails:
+        # Note that these files are not charge decorated and are simply the original cif files rewritten
+        mg.write_structure(d[file]['struct'], '{0}/fails/{1}'.format(dir,file))
+
 
 
 def cif2cssr(cif, remove = ['Li+']):
@@ -24,8 +101,7 @@ def cif2cssr(cif, remove = ['Li+']):
     '''
     filename  = cif.split('.')[-2]
     s = mg.read_structure(cif)
-  #  rem = remox()
-  #   s = rem.apply_transformation(s)
+
     if remove != None:
         s.remove_species(remove)
     
@@ -35,6 +111,7 @@ def cif2cssr(cif, remove = ['Li+']):
     except:
         cssr = None
     return cssr
+
 
 def find_channel_size(file, accuracy = 'normal', rad_file = None, mass_file = None):
 
@@ -78,10 +155,6 @@ def find_channel_size(file, accuracy = 'normal', rad_file = None, mass_file = No
     free_sp_rad = float(f.readline().split[2])
     f.close()
     return free_sp_rad
-
-
-
-
 
 
 def find_channels(file, probe_radius = 0.5, accuracy = 'normal', rad_file = None):
@@ -129,20 +202,38 @@ def find_channels(file, probe_radius = 0.5, accuracy = 'normal', rad_file = None
     return int(channels), int(dimensionality)
     
 
-def write_rad_file(d, filename):
+def write_rad_file(d, path, filename):
     '''
     d = dict of element and ionic radius (element should ideally be charge decorated, but this is not necessary)
-    filename = file will be stored as <filename.rad>
+    path = path to the directory to store file 
+    filename = <filename.rad>
     '''
     
     file = ''
     for key in d:
         file+='{0} {1}\n'.format(key, d[key])
 
-    f = open('{0}.rad'.format(filename), 'w')
+    f = open('{0}/{1}.rad'.format(path, filename), 'w')
     f.write(file)
     f.close
     return
+
+
+def write_mass_file(d, path, filename):
+    '''
+    d = dict of element and mass (element should ideally be charge decorated, but this is not necessary)
+    path = path to directory to store the file
+    filename = file will be stored as <filename.mass>
+    '''
+    file = ''
+    for key in d:
+        file+='{0} {1}\n'.format(key, d[key])
+
+    f = open('{0}/{1}.mass'.format(path, filename), 'w')
+    f.write(file)
+    f.close
+    return
+    
 
 def read_msd(filepath, skiprows = 1):
     '''
