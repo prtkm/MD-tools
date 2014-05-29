@@ -18,14 +18,14 @@ from ase.io import read
 from subprocess import Popen, PIPE
 
 
-def cif2cssr(cif, remove = ['Li']):
+def cif2cssr(cif, remove = ['Li+']):
     '''
-    Converts cif files to Zeo++ CSSR files, removes oxidation states and species specified in remove. Must have pymatgen installed. Structure must be ordered
+    Converts cif files to Zeo++ CSSR files, deletes species specified in remove. Must have pymatgen installed. Structure must be ordered and oxidation state decorated
     '''
     filename  = cif.split('.')[-2]
     s = mg.read_structure(cif)
-    rem = remox()
-    s = rem.apply_transformation(s)
+  #  rem = remox()
+  #   s = rem.apply_transformation(s)
     if remove != None:
         s.remove_species(remove)
     
@@ -35,6 +35,54 @@ def cif2cssr(cif, remove = ['Li']):
     except:
         cssr = None
     return cssr
+
+def find_channel_size(file, accuracy = 'normal', rad_file = None, mass_file = None):
+
+    '''
+    Use zeo++ to find the largest free sphere.
+    '''
+
+    filename, ext = file.split('.')
+    
+    if ext == 'cif':
+        
+        cssr = cif2cssr(file)
+        
+        if cssr == None:
+            
+            return None, None
+        
+        file = '{0}.cssr'.format(filename)
+    # Make sure to leave a space on every addition to a command
+    cmd = '$ZEO '   
+
+    if accuracy == 'high':
+        cmd+='-ha '
+
+    if nomass:
+        cmd+=  '-nomass '
+    elif not nomass and mass_file != None:
+        cmd+= '-m {0} '.format(mass_file)
+     
+    if rad_file != None:           
+        cmd += '-r {0} '.format(rad_file)
+    
+    cmd += '-res {0} '.format(file)
+
+    p = Popen(cmd, shell =True, stdout =PIPE, stderr= PIPE)
+    out, err = p.communicate()
+    if err !='':
+        raise Exception('\n\n{0}'.format(err))
+
+    f = open('{0}.chan'.format(filename), 'r')   
+    free_sp_rad = float(f.readline().split[2])
+    f.close()
+    return free_sp_rad
+
+
+
+
+
 
 def find_channels(file, probe_radius = 0.5, accuracy = 'normal', rad_file = None):
 
@@ -58,7 +106,7 @@ def find_channels(file, probe_radius = 0.5, accuracy = 'normal', rad_file = None
         if rad_file == None:           
             cmd = '$ZEO -chan {0} {1}'.format(probe_radius, file)
         else:
-            cmd = '$ZEO -r {2} -chan {0} {1}'.format(probe_radius, file, rad_file)
+            cmd = '$ZEO -nomass -r {2} -chan {0} {1}'.format(probe_radius, file, rad_file)
     else:
         if rad_file == None:
             cmd = '$ZEO -ha -chan {0} {1}'.format(probe_radius, file)
@@ -72,7 +120,7 @@ def find_channels(file, probe_radius = 0.5, accuracy = 'normal', rad_file = None
 
     f = open('{0}.chan'.format(filename), 'r')    
     lines = f.readlines()
-
+    f.close()
     channels =  lines[0].split()[1]
     dimensionality = lines[0].split()[-1]
     if int(channels) == 0:
