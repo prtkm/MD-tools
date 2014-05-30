@@ -97,6 +97,24 @@ def prepare_for_zeo(dir):
 
     return
 
+def perform_channel_analysis(dir, prepared = False):
+
+    '''
+    Takes a directory and prepares it for analysis by zeo++ (if prepared = False). Then performs channel analysis on all the files in the directory.
+    '''
+    if not dir.endswith('/'):
+        dir+='/'
+    if prepared == False:
+        prepare_for_zeo(dir)
+        dir+='ready/'
+    files = [file for file in os.listdir(dir) if file.endswith('cif')] 
+    structs, sizes = [], []
+    for file in files:
+        structs.append(file.strip('.cif'))
+        sizes.append(find_channel_size(dir + file))
+        
+    return structs, sizes
+
 def cif2cssr(cif, remove = ['Li+']):
     '''
     Converts cif files to Zeo++ CSSR files, deletes species specified in remove. 
