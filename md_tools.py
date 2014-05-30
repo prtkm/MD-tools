@@ -15,8 +15,52 @@ from ase.io import read
 from subprocess import Popen, PIPE
 from pymatgen.transformations.standard_transformations import AutoOxiStateDecorationTransformation as oxi
 import os
+import shutil
 
+def get_cif_files(dir):
 
+    '''
+    Returns a list of all the cif files in a directory
+    '''
+    files = [file for file in os.listdir(dir) if file.endswith('cif')]
+    return files
+
+def prepare_for_md(dir):
+
+    '''
+    Filters out cif files with disorder.
+    Creates new directories:
+    ./md-ready
+    ./disordered
+    '''
+    if not dir.endswith('/'):
+        dir+='/'
+
+    files = get_cif_files(dir)
+    ordered, disordered = [], []
+
+    for file in files:
+
+        s = mg.read_structure(dir+file)
+        if s.is_ordered:
+            ordered.append(file)
+        else:
+            disordered.append(file)
+
+    for subd in ['md-ready', 'disordered']:
+
+        # This creates subdirectories if not already present
+        if not os.path.isdir('{0}/{1}'.format(dir, subd)):
+            os.makedirs('{0}/{1}'.format(dir, subd))
+
+    for file in ordered:
+        shutil.copy(dir + file, dir + 'md-ready/')
+
+    for file in disordered:
+        shutil.copy(dir + file, dir + 'disordered/')
+        
+    return
+    
 def prepare_for_zeo(dir):
 
     '''
@@ -30,7 +74,7 @@ def prepare_for_zeo(dir):
     files = [file for file in os.listdir(dir) if file.endswith('cif')]
     
  
-    d = {} # Dictionary of the form d[<filename>]['struct'], d[<filename>]['properties']
+    d = {} # Dictionary of the form d[<filename>]['struct'], d[<filename>]['mass'], d[<filename>]['radius']
            
     fails, no_rad = [], []
 
