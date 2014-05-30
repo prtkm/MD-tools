@@ -84,7 +84,7 @@ def prepare_for_zeo(dir):
     for file in ready:
         mg.write_structure(d[file]['struct'], '{0}/ready/{1}'.format(dir, file))
         # write the radius and the mass files also
-        filename = file.split('.cif')[0]
+        filename = file.rsplit('.cif',1)[0]
         write_rad_file(d[file]['radii'],'{0}/ready'.format(dir), filename)
         write_mass_file(d[file]['masses'],'{0}/ready'.format(dir), filename) 
 
@@ -120,7 +120,7 @@ def cif2cssr(cif, remove = ['Li+']):
     Converts cif files to Zeo++ CSSR files, deletes species specified in remove. 
     Must have pymatgen installed. Structure must be ordered and oxidation state decorated
     '''
-    filename  = cif.split('.')[-2]
+    filename  = cif.rsplit('.',1)[0]
     s = mg.read_structure(cif)
 
     if remove != None:
@@ -141,7 +141,7 @@ def find_channel_size(file, accuracy = 'normal'):
     This must be run on a cif file in a directory prepapred for zeo++, i.e., with the radius file and the mass file.
     '''
 
-    filename, ext = file.split('.cif')
+    filename, ext = file.rsplit('.cif',1)
     
     if ext == 'cif':
         
@@ -180,7 +180,7 @@ def find_channels(file, probe_radius = 0.5, accuracy = 'normal', rad_file = None
     '''
     Use zeo++ to find conducting channels in given structure- cif or cssr. Must specify zeo executable as $ZEO in .bashrc for this to work.
     '''
-    filename, ext = file.split('.cif')
+    filename, ext = file.rsplit('.cif',1)
     
     if ext == 'cif':
         
