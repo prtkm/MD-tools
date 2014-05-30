@@ -141,7 +141,7 @@ def find_channel_size(file, accuracy = 'normal'):
     This must be run on a cif file in a directory prepapred for zeo++, i.e., with the radius file and the mass file.
     '''
 
-    filename, ext = file.rsplit('.cif',1)
+    filename, ext = file.rsplit('.',1)
     
     if ext == 'cif':
         
@@ -180,7 +180,7 @@ def find_channels(file, probe_radius = 0.5, accuracy = 'normal', rad_file = None
     '''
     Use zeo++ to find conducting channels in given structure- cif or cssr. Must specify zeo executable as $ZEO in .bashrc for this to work.
     '''
-    filename, ext = file.rsplit('.cif',1)
+    filename, ext = file.rsplit('.',1)
     
     if ext == 'cif':
         
