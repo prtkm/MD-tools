@@ -32,10 +32,10 @@ def prepare_for_zeo(dir):
  
     d = {} # Dictionary of the form d[<filename>]['struct'], d[<filename>]['properties']
            
-    fails, no_ox = [], []
+    fails, no_rad = [], []
 
     for file in files:
-        
+        d[file] = {}
         # reading to pymatgen structure object
         s = mg.read_structure('{1}/{0}'.format(file, dir))
         
@@ -58,11 +58,11 @@ def prepare_for_zeo(dir):
             d[file]['masses'] = masses
             for sp in species:
          
-                if sp.ionic_radius == None
+                if sp.ionic_radius == None:
                 # These are charge decorated files which have an assigned oxidation state but no radius in pymatgen corresponding to that state
                 # These files will have to be analyzed later, possibly using the crystal radius from the shannon table
-                no_rad.append(file)
-                break
+                    no_rad.append(file)
+                    break
 
         except:
             # These are files that cannot be assigned oxidation states - bond valence fails either due to disorder or is unable to find a charge neutral state       
@@ -72,7 +72,7 @@ def prepare_for_zeo(dir):
             d[file]['masses'] = None
 
     # This is a list of usable files for zeo++
-    ready = list(set(files).difference(set(nones)).difference(set(undecorated)))
+    ready = list(set(files).difference(set(no_rad)).difference(set(fails)))
 
     for subd in ['ready', 'no-rad', 'fails']:
 
@@ -95,11 +95,12 @@ def prepare_for_zeo(dir):
         # Note that these files are not charge decorated and are simply the original cif files rewritten
         mg.write_structure(d[file]['struct'], '{0}/fails/{1}'.format(dir,file))
 
-
+    return
 
 def cif2cssr(cif, remove = ['Li+']):
     '''
-    Converts cif files to Zeo++ CSSR files, deletes species specified in remove. Must have pymatgen installed. Structure must be ordered and oxidation state decorated
+    Converts cif files to Zeo++ CSSR files, deletes species specified in remove. 
+    Must have pymatgen installed. Structure must be ordered and oxidation state decorated
     '''
     filename  = cif.split('.')[-2]
     s = mg.read_structure(cif)
@@ -118,7 +119,8 @@ def cif2cssr(cif, remove = ['Li+']):
 def find_channel_size(file, accuracy = 'normal'):
 
     '''
-    Use zeo++ to find the largest free sphere. This must be run on a cif file in a directory prepapred for zeo++, i.e., with the radius file and the mass file.
+    Use zeo++ to find the largest free sphere. 
+    This must be run on a cif file in a directory prepapred for zeo++, i.e., with the radius file and the mass file.
     '''
 
     filename, ext = file.split('.')
@@ -140,7 +142,7 @@ def find_channel_size(file, accuracy = 'normal'):
     if accuracy == 'high':
         cmd+='-ha '
 
-    cmd+= '-m {0} -r {1} -res {2}'.format(mass_file, rad_file, file)
+    cmd+= '-mass {0} -r {1} -res {2}'.format(mass_file, rad_file, file)
     
 
     p = Popen(cmd, shell =True, stdout =PIPE, stderr= PIPE)
@@ -148,8 +150,8 @@ def find_channel_size(file, accuracy = 'normal'):
     if err !='':
         raise Exception('\n\n{0}'.format(err))
 
-    f = open('{0}.chan'.format(filename), 'r')   
-    free_sp_rad = float(f.readline().split[2])
+    f = open('{0}.res'.format(filename), 'r')   
+    free_sp_rad = float(f.readline().split()[2])
     f.close()
     return free_sp_rad
 
