@@ -25,6 +25,20 @@ def get_cif_files(dir):
     files = [file for file in os.listdir(dir) if file.endswith('cif')]
     return files
 
+def remove_duplicates(files):
+
+    '''
+    Takes a list of cif files (with extension) and filters out the duplicates.
+    File should be of the form 12345-Ax_By_Cz.cif.
+    Reutrns dict of structure names mapped to a single file.
+    This just assigns the last found structure to the file name for now.    
+    '''
+
+    names = [file.strip('.cif').split('-')[-1] for file in files]
+    d = dict(zip(names, files))
+    return d
+
+
 def prepare_for_md(dir):
 
     '''
@@ -124,18 +138,25 @@ def prepare_for_zeo(dir):
         if not os.path.isdir('{0}/{1}'.format(dir, subd)):
             os.makedirs('{0}/{1}'.format(dir, subd))
 
+
+    d_ready = remove_duplicates(ready)
+    d_no_rad = remove_duplicates(no_rad)
+    d_fails = remove_duplicates(fails)
     # Writing files into respective sub - directories
-    for file in ready:
+    for key in d_ready:
+        file = d_ready[key]
         mg.write_structure(d[file]['struct'], '{0}/ready/{1}'.format(dir, file))
         # write the radius and the mass files also
         filename = file.rsplit('.cif',1)[0]
         write_rad_file(d[file]['radii'],'{0}/ready'.format(dir), filename)
         write_mass_file(d[file]['masses'],'{0}/ready'.format(dir), filename) 
 
-    for file in no_rad:
+    for key in d_no_rad:
+        file = d_no_rad[key]
         mg.write_structure(d[file]['struct'], '{0}/no-rad/{1}'.format(dir,file))
 
-    for file in fails:
+    for key in d_fails:
+        file = d_fails[key]
         # Note that these files are not charge decorated and are simply the original cif files rewritten
         mg.write_structure(d[file]['struct'], '{0}/fails/{1}'.format(dir,file))
 
