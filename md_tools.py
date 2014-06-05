@@ -203,7 +203,6 @@ def plot_lnD_v_Tinv(Ds, Ts, save = False):
 
     T_inv_stack = np.column_stack([T_inv**1, T_inv**0])
 
-    T_inv_stack = np.column_stack([T_inv_cut**1, T_inv_cut**0])
     p, pint, se = regress(T_inv_stack, ln_D, 0.05)
     
     ln_D_fit = np.dot(T_inv_stack, p)
