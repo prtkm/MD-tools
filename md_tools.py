@@ -196,7 +196,7 @@ def get_conductivity(atoms, T, D = None, slope = None, interval = None,  species
 def plot_lnD_v_Tinv(Ds, Ts, save = False):
 
 
-    lnD = np.log(np.array(D))
+    lnD = np.log(np.array(Ds))
     Tinv = 1000./np.array(Ts)
 
     plt.plot(lnD, Tinv, 'ro')
