@@ -197,9 +197,9 @@ def plot_lnD_v_Tinv(Ds, Ts, save = False):
 
 
     lnD = np.log(np.array(Ds))
-    Tinv = 1000./np.array(Ts)
+    T_inv = 1000./np.array(Ts)
 
-    plt.plot(lnD, Tinv, 'ro')
+    plt.plot(lnD, T_inv, 'ro')
 
     T_inv_stack = np.column_stack([T_inv**1, T_inv**0])
 
