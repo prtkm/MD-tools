@@ -114,7 +114,7 @@ def plot_msd(save = False, show = False, t = None, msd = None, t_units = 'ps', m
         try:
             t, msd = read_msd(file, skiprows = skiprows)
         except:
-            print "Enter either t,msd or file to read from"
+            raise NoInput, "Enter either t,msd or file to read from"
 
     if T != None:
         plt.plot(t, msd, label = '{0} K'.format(T))
@@ -193,18 +193,50 @@ def get_conductivity(atoms, T, D = None, slope = None, interval = None,  species
         sigma_int = prefactor * Dint
         return sigma, sigma_int
 
+def plot_logD_v_Tinv(Ds, Ts, save = False):
+
+
+    ln_D = np.log10(np.array(Ds))
+    T_inv = 1000./np.array(Ts)
+
+    plt.plot(T_inv, ln_D, 'ro')
+
+    T_inv_stack = np.column_stack([T_inv**1, T_inv**0])
+
+    p, pint, se = regress(T_inv_stack, ln_D, 0.05)
+
+    ln_D_fit = np.dot(T_inv_stack, p)
+
+    plt.plot(T_inv, ln_D_fit)
+    plt.xlabel('1000/T (1/K)')
+    plt.ylabel('ln(D)')
+
+    if save != False:
+
+        plt.savefig(save)
+
+    slope = p[0]
+
+    R = 5.189e19
+    Na = 6.023e23
+    E_act = -slope*R/Na
+    E_act_int = - np.array(pint[0]) * R/Na
+
+    return E_act, E_act_int
+
+
 def plot_lnD_v_Tinv(Ds, Ts, save = False):
 
 
     ln_D = np.log(np.array(Ds))
     T_inv = 1000./np.array(Ts)
 
-    plt.plot(lnD, T_inv, 'ro')
+    plt.plot(T_inv, ln_D, 'ro')
 
     T_inv_stack = np.column_stack([T_inv**1, T_inv**0])
 
     p, pint, se = regress(T_inv_stack, ln_D, 0.05)
-    
+
     ln_D_fit = np.dot(T_inv_stack, p)
 
     plt.plot(T_inv, ln_D_fit)
