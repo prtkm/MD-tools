@@ -27,18 +27,42 @@ def get_cif_files(dir):
     files = [file for file in os.listdir(dir) if file.endswith('cif')]
     return files
 
-def remove_duplicates(files):
+def remove_duplicates(files, separator):
 
     '''
     Takes a list of cif files (with extension) and filters out the duplicates.
-    File should be of the form 12345-Ax_By_Cz.cif.
+    File should be of the form <ID><separator><formula>. Usually required while analysing
+    ICSD structures where different ids might have the same structure.
+    
     Reutrns dict of structure names mapped to a single file.
     This just assigns the last found structure to the file name for now.    
     '''
 
-    names = [file.strip('.cif').split('-')[-1] for file in files]
+    names = [file.strip('.cif').split(separator)[-1] for file in files]
     d = dict(zip(names, files))
     return d
+
+
+def make_fileset(filenames, dir1, dir2):
+
+    '''
+    The point of this function is to make a subset of files (usually cif files for geometry analysis by zeo++).
+
+    Selects files specified in filenames from dir1 and dumps it into dir2. dir1 and dir2 are relative
+    to the current directory, unless an absolute path is used.
+    '''
+
+    import shutil
+
+    
+    if not os.path.isdir(dir2):
+        os.makedirs(dir2)
+
+    if not dir1.endswith('/'):
+        dir1+='/'
+    for file in filenames:
+        filepath = dir1+file
+        shutil.copy(filepath, dir2)
 
 
 def prepare_for_md(dir):
@@ -77,7 +101,7 @@ def prepare_for_md(dir):
         
     return
     
-def prepare_for_zeo(dir):
+def prepare_for_zeo(dir, remove_duplicates = False, separator = None):
 
     '''
     Takes a directory of cif files and filters zeo++ usable files. Requires pymatgen.
@@ -85,8 +109,12 @@ def prepare_for_zeo(dir):
     ./ready - oxidation state decorated files for zeo++ to use.  
     ./no-rad - structures with species having no corresponding ionic radii in pymatgen database
     ./fails - structures which cannot be assigned oxidation states
+
+    If remove_duplicates is set to true, it runs the files through remove_duplicates.
     '''
 
+    # TODO maybe let the user specify the location of the new directories
+    
     files = [file for file in os.listdir(dir) if file.endswith('cif')]
     
  
@@ -134,35 +162,43 @@ def prepare_for_zeo(dir):
     # This is a list of usable files for zeo++
     ready = list(set(files).difference(set(no_rad)).difference(set(fails)))
 
-    for subd in ['ready', 'no-rad', 'fails']:
+    for subd in ['zeo-ready', 'zeo-no-rad', 'zeo-fails']:
 
         # This creates subdirectories if not already present
         if not os.path.isdir('{0}/{1}'.format(dir, subd)):
             os.makedirs('{0}/{1}'.format(dir, subd))
 
+    if remove_duplicates:
+        d_ready = remove_duplicates(ready, separator)
+        ready = [d_ready[key] for key in d_ready]
+        
+        d_no_rad = remove_duplicates(no_rad, separator)
+        no_rad = [d_no_rad[key] for key in d_no_rad]
 
-    d_ready = remove_duplicates(ready)
-    d_no_rad = remove_duplicates(no_rad)
-    d_fails = remove_duplicates(fails)
-    # Writing files into respective sub - directories
-    for key in d_ready:
-        file = d_ready[key]
-        mg.write_structure(d[file]['struct'], '{0}/ready/{1}'.format(dir, file))
+        d_fails = remove_duplicates(fails, separator)
+        fails = [d_fails[key] for key in d_fails]
+
+
+    
+    # Writing files into respective sub-directories
+    for file in ready:
+        
+        mg.write_structure(d[file]['struct'], '{0}/zeo-ready/{1}'.format(dir, file))
         # write the radius and the mass files also
         filename = file.rsplit('.cif',1)[0]
-        write_rad_file(d[file]['radii'],'{0}/ready'.format(dir), filename)
-        write_mass_file(d[file]['masses'],'{0}/ready'.format(dir), filename) 
+        write_rad_file(d[file]['radii'],'{0}/zeo-ready'.format(dir), filename)
+        write_mass_file(d[file]['masses'],'{0}/zeo-ready'.format(dir), filename) 
 
-    for key in d_no_rad:
-        file = d_no_rad[key]
-        mg.write_structure(d[file]['struct'], '{0}/no-rad/{1}'.format(dir,file))
+    for file in no_rad:
+        # These files do not have a radius for atleast one of the species
+        mg.write_structure(d[file]['struct'], '{0}/zeo-no-rad/{1}'.format(dir,file))
 
-    for key in d_fails:
-        file = d_fails[key]
-        # Note that these files are not charge decorated and are simply the original cif files rewritten
-        mg.write_structure(d[file]['struct'], '{0}/fails/{1}'.format(dir,file))
+    for file in fails:
+        
+        # Note: these files are not charge decorated and are simply the original cif files rewritten
+        mg.write_structure(d[file]['struct'], '{0}/zeo-fails/{1}'.format(dir,file))
 
-    return
+    return len(ready), len(no_rad), len(fails)
 
 def perform_channel_analysis(dir, prepared = False):
 
