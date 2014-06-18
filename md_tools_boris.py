@@ -26,8 +26,8 @@ from operator import itemgetter
     O_nbrs=[]; O_coord=[]; Li_nbrs=[]
     garnet.site_ids = Li_atoms
     radius = 3.0
-    for iLi in Li_atoms:       
-        O_near = [iO for iO in O_atoms if garnet.get_min_distance(iLi, iO, mic=True) < 3.0] 
+    for iLi in Li_atoms:
+        O_near = [iO for iO in O_atoms if garnet.get_min_distance(iLi, iO, mic=True) < 3.0]
         O_nbrs += [O_near]
         O_coord += [len(O_near)]
 #        for jLi in Li_atoms:
@@ -37,7 +37,7 @@ from operator import itemgetter
     garnet.O_nbrs = O_nbrs
     garnet.O_coord = O_coord
     write_pickle('garnet_prototype.pkl', garnet)
-'''    
+'''
 
 def write_pickle(filename, object):
     # pickle the calculation instance for record
@@ -45,7 +45,7 @@ def write_pickle(filename, object):
     pickle.dump(object, f)
     f.close()
 
-    
+
 def read_pickle(filename):
     f = open(filename, 'rb')
     return pickle.load(f)
@@ -54,9 +54,9 @@ def read_pickle(filename):
 
 #prototype = read_pickle("C:\Documents and Settings\kyb5pal\My Documents\Battery\Ion conductors\Structures\MD\garnet_prototype.pkl")
 # prototype = read_pickle("garnet_prototype.pkl")
-    
+
 def mean_square_displacement(traj):
-    # Compute how far each atom moves in an MD run
+     # Compute how far each atom moves in an MD run
     Images = range(len(traj))
     Atoms = range(len(traj[0]))
  #  Li_atoms = [i for i in Atoms if traj[0].get_chemical_symbols()[i]=='Li']
@@ -66,6 +66,24 @@ def mean_square_displacement(traj):
         for i in Atoms:
             dist[t,i] = linalg.norm(traj[t].get_positions()[i] - traj[0].get_positions()[i])
     return dist
+
+def non_Li_displacement(traj):
+    '''
+    Compute the distance non Li ions have moved from first to last image
+    NOTE: here traj is a list of the first and the last atoms objects
+
+    '''
+
+    Images = range(len(traj))
+    Atoms = range(len(traj[0]))
+    non_Li_atoms = [i for i in Atoms if traj[0].get_chemical_symbols()[i]!='Li']
+    dist = [[linalg.norm(traj[t].get_positions()[i] - traj[0].get_positions()[i]) for i in non_Li_atoms] for t in Images]
+
+
+    return dist
+
+
+
 
 
 #This is outdated
@@ -82,7 +100,7 @@ def coordination(traj, atom_indices):
             O_coord[t,iLi] = 0
             Li_coord[t,iLi] = 0
             for iO in O_atoms:
-                O_dist = traj[t].get_distance(iLi, iO, mic=True)                
+                O_dist = traj[t].get_distance(iLi, iO, mic=True)
                 if O_dist < 3.3 : O_coord[t,iLi] += 1
             if O_coord[t,iLi] == 5: O_coord[t,iLi] = 4
             if O_coord[t,iLi] in [7,8]: O_coord[t,iLi] = 6
@@ -104,12 +122,12 @@ def coord_from_matching(traj):
     O_atoms = [i for i in Natoms if traj[0].get_chemical_symbols()[i]=='O']
     for t, image in enumerate(traj):
         print "... Processing image  %s" % t
-        O_nbrs=[]; O_coord_raw=[]; O_coord_lim=[]; site_ids=[]; O_coords=[] 
+        O_nbrs=[]; O_coord_raw=[]; O_coord_lim=[]; site_ids=[]; O_coords=[]
         for iLi in Li_atoms:
             # distance matching to prototype sites
-            O_near = [] 
+            O_near = []
             for iO in O_atoms:
-                O_dist = image.get_distance(iLi, iO, mic=True)                
+                O_dist = image.get_distance(iLi, iO, mic=True)
                 if O_dist < radius : O_near += [iO + O_offset]
             O_nbrs += [O_near]
             #O_coord_raw += [len(O_near)]
@@ -127,12 +145,12 @@ def coord_from_matching(traj):
                         O_coord = 4
                         p_site_list.remove(p_site)
                         break
-                    elif len(p_nbrhood) == 6 and len(O_near) > 5:    # if matches octahedral 
-                        site_id = p_site 
+                    elif len(p_nbrhood) == 6 and len(O_near) > 5:    # if matches octahedral
+                        site_id = p_site
                         O_coord = 6
                         p_site_list.remove(p_site)
                         break
-            if site_id < 0 : 
+            if site_id < 0 :
                 print "error assigning Li # %s" % iLi   # can use else clause here
             site_ids += [site_id]
             O_coords += [O_coord]
@@ -171,8 +189,8 @@ def coord_from_poly(traj):
             #    print "Strange polyhedron of site %s at time %s" % (id, t)
             polyhedra += [polyhedron]
             poly_hulls += [poly_hull]
-        
-        # compute topological polyhedral coordination for each Li      
+
+        # compute topological polyhedral coordination for each Li
         for iLi in Li_atoms:
             site_id = -1; O_coord = 0; nbrhood =[];
             p_site_list = list(prototype.site_ids) #copy
@@ -180,7 +198,7 @@ def coord_from_poly(traj):
                 polyhedron = polyhedra[p_site]
                 poly_hull = poly_hulls[p_site]
                 origin = poly_origins[p_site]
-                vertices = polyhedron + [image.get_min_vector(origin, iLi, mic=True)]             
+                vertices = polyhedron + [image.get_min_vector(origin, iLi, mic=True)]
                 vert_hull = set(map(frozenset, Delaunay(vertices).convex_hull))
                 #if iLi in [1,6]:
                 #    print iLi, p_site, polyhedron, vertices
@@ -191,18 +209,18 @@ def coord_from_poly(traj):
                     nbrhood = prototype.O_nbrs[p_site]
                     p_site_list.remove(p_site)
                     break  # don't allow duplicate site assignments
-            if site_id < 0 : 
+            if site_id < 0 :
                 print "error assigning Li # %s" % iLi   # can use else clause here
                  #print site_ids
             site_ids += [site_id]
             O_coords += [O_coord]
             O_nbrs += [nbrhood]
-            #Li_nbrs += [Li_near]              
+            #Li_nbrs += [Li_near]
         # ----- end for iLi loop
         image.O_nbrs = O_nbrs
         image.site_ids = site_ids
         image.O_coords = O_coords
-       #image.Li_nbrs = Li_nbrs                  
+       #image.Li_nbrs = Li_nbrs
     print "Coordination computations took %s sec" % (time.clock() - start)
     #write_pickle(traj[0].filename + ".poly.pkl", traj)
     return traj
@@ -216,7 +234,7 @@ def find_occupancy(traj):
         oct_occ += sum([1.0 for x in image.O_coords if x==6])
     tet_occ = tet_occ/t
     oct_occ = oct_occ/t
-    return (tet_occ, oct_occ)   
+    return (tet_occ, oct_occ)
 
 
 def find_hops(traj):
@@ -242,8 +260,8 @@ def find_hops2(traj):
     for t,image in enumerate(traj):
         comparison = zip(image.site_ids, image_prev.site_ids)
         mismatch = [i for i in range(len(comparison)) if comparison[i][0] != comparison[i][1]]
-        if len(mismatch) > 0:            
-            hops += [(t, id, comparison[id], (image_prev.O_coords[id], image.O_coords[id])) for id in mismatch]           
+        if len(mismatch) > 0:
+            hops += [(t, id, comparison[id], (image_prev.O_coords[id], image.O_coords[id])) for id in mismatch]
         image_prev = image
     return hops
 
@@ -289,14 +307,14 @@ def plot_coord_hist(traj, atom_indices, time):
     #ylabel("O coordination", fontsize = 16)
     #for t in time:
     #    p1.scatter(atom_indices, O_coords[t,atom_indices])
-    
+
     p2 = subplot(212)
     xlabel("Li index", fontsize = 16)
     ylabel("Li coordination", fontsize = 16)
     for t in time:
         p2.scatter(atom_indices, Li_coord[t,atom_indices])
     show()
-    
+
 
 def plot_coord_time(traj, atom_indices):
     #Plot coordinations of Li in list versus time
@@ -339,8 +357,8 @@ def plot_hops_time(hops):
             p1.plot(times, sites,'-')
     #grid(True, which= 'major')
     show()
-    
-    
+
+
 #        def get_min_distance(self, a0, a1, mic=True):
 #        """ Correct min distance between atoms in non-cubic cells
 #        bkoz: this is a simple search that needs to be optimized, can still fail
@@ -354,8 +372,8 @@ def plot_hops_time(hops):
 #                for k in (-1, 0, 1):
 #                    distances.append(np.linalg.norm(D + np.dot(self._cell, np.array([i,j,k]))))
 #        return min(distances)
-#    
-#    
+#
+#
 #        def get_min_vector(self, a0, a1, mic=True):
 #        """ Correct min distance between atoms in non-cubic cells
 #        bkoz: this is a simple search that needs to be optimized, can still fail
@@ -371,67 +389,67 @@ def plot_hops_time(hops):
 #                    vectors.append(vector)
 #                    distances.append(np.linalg.norm(vector))
 #        return vectors[np.argmin(distances)]
-#                       
-    
-    
+#
+
+
 def read_qe_output(filename):
     """Import Espresso-4.2 type file.
     Reads unitcells, atom positions, energies, and forces from the output file.
     """
-        
+
     from ase.calculators.singlepoint import SinglePointCalculator
-    
+
     if isinstance(filename, str): #check if filename is a string
         f = open(filename)
     else:        # Assume it's a file-like object
         f = filename
-    
+
     traj = []   # initiate the trajectory
-        
+
     while True:   #TODO: need to rewrite as for loop with continue and break statements
         line = f.readline()
-        if not line: break  
+        if not line: break
         if 'number of atoms/cell' in line:
             natoms = int(line.split()[4])
         if 'lattice parameter' in line:
             a0 = float(line.split()[4])
         if 'crystal axes' in line:
             # inital cell typically looks like   a(1) = ( -6.403270  6.403270  6.403270 )
-            # we extract this three times, assuming Angstrom units (ibrav=0)      
+            # we extract this three times, assuming Angstrom units (ibrav=0)
             cell = []
-            for i in range(3): 
+            for i in range(3):
                 data = f.readline().split()    # skip ahead and read new line
                 cell += [[float(data[3]), float(data[4]), float(data[5])]]
         if 'site n' in line:  # read initial coordinates
             atoms = Atoms(pbc=True) # initiate first structure, may appear twice in the header
             for i in range(natoms):
                 data = f.readline().split()  # skip ahead and read new line
-                # typically looks like this. Careful with spaces for >100 atoms!!         
+                # typically looks like this. Careful with spaces for >100 atoms!!
                 #   12           Li  tau( 12) = (   0.0000000   3.2016350   4.8024525  )
                 atoms += Atom(str(data[1]), ([float(data[6]), float(data[7]), float(data[8])]))
             if 'cryst' in line:
-                atoms.set_cell(cell, scale_atoms = True)  # use the latest found cell, in this case the first              
-            elif 'a_0' in line:  
+                atoms.set_cell(cell, scale_atoms = True)  # use the latest found cell, in this case the first
+            elif 'a_0' in line:
                 atoms.set_cell(cell, scale_atoms = False) # assume a0=1A
         if 'CELL_PARAMETERS' in line:
             cell = []
-            for i in range(3): 
+            for i in range(3):
                 data = f.readline().split()    # skip ahead and read new line
                 cell += [[float(data[0]), float(data[1]), float(data[2])]]
         if 'ATOMIC_POSITIONS' in line:
             atoms = Atoms(pbc=True) # we are starting a new structure
             for i in range(natoms):
                 data = f.readline().split()  # skip ahead and read new line
-                # typically looks like this:    La       0.250000000   0.875000000   0.625000000          
+                # typically looks like this:    La       0.250000000   0.875000000   0.625000000
                 atoms += Atom(str(data[0]), ([float(data[1]), float(data[2]), float(data[3])]))
             if 'crystal' in line:
-                atoms.set_cell(cell, scale_atoms = True)  # use the latest found cell              
-            elif 'angstrom' in line:  
+                atoms.set_cell(cell, scale_atoms = True)  # use the latest found cell
+            elif 'angstrom' in line:
                 atoms.set_cell(cell, scale_atoms = False) # assume a0=1A
         if '!    total energy' in line: # read energy after each iteration
             energy = float(line.split()[4])*units.Rydberg
             atoms.set_calculator(SinglePointCalculator(energy,None,None,None,atoms))  # enter energy into the last atoms object
-            traj += [atoms]   # update trajectory only now, after all data is gathered, so no positions without energy 
+            traj += [atoms]   # update trajectory only now, after all data is gathered, so no positions without energy
     f.close()
     traj[0].filename = filename
     return traj

@@ -8,9 +8,11 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from pycse import regress
+
 import pymatgen as mg
 from pymatgen.io.zeoio import *
 from pymatgen.io.aseio import AseAtomsAdaptor as aseio
+
 from ase.io import read
 from subprocess import Popen, PIPE
 from pymatgen.transformations.standard_transformations import AutoOxiStateDecorationTransformation as oxi
@@ -190,7 +192,7 @@ def cif2cssr(cif, remove = ['Li+']):
 
     if remove != None:
         s.remove_species(remove)
-    
+
     try:
         cssr = ZeoCssr(s)
         cssr.write_file('{0}.cssr'.format(filename))
@@ -245,21 +247,22 @@ def find_channels(file, probe_radius = 0.5, accuracy = 'normal', rad_file = None
     '''
     Use zeo++ to find conducting channels in given structure- cif or cssr. Must specify zeo executable as $ZEO in .bashrc for this to work.
     '''
+
     filename, ext = file.rsplit('.',1)
-    
+
     if ext == 'cif':
-        
+
         cssr = cif2cssr(file)
-        
+
         if cssr == None:
-            
+
             return None, None
-        
+
         file = '{0}.cssr'.format(filename)
-      
-          
+
+
     if accuracy !='high':
-        if rad_file == None:           
+        if rad_file == None:
             cmd = '$ZEO -chan {0} {1}'.format(probe_radius, file)
         else:
             cmd = '$ZEO -nomass -r {2} -chan {0} {1}'.format(probe_radius, file, rad_file)
@@ -268,13 +271,13 @@ def find_channels(file, probe_radius = 0.5, accuracy = 'normal', rad_file = None
             cmd = '$ZEO -ha -chan {0} {1}'.format(probe_radius, file)
         else:
             cmd = '$ZEO -ha -r {2} -chan {0} {1}'.format(probe_radius, file, rad_file)
-        
+
     p = Popen(cmd, shell =True, stdout =PIPE, stderr= PIPE)
     out, err = p.communicate()
     if err !='':
         raise Exception('\n\n{0}'.format(err))
 
-    f = open('{0}.chan'.format(filename), 'r')    
+    f = open('{0}.chan'.format(filename), 'r')
     lines = f.readlines()
     f.close()
     channels =  lines[0].split()[1]
@@ -283,6 +286,7 @@ def find_channels(file, probe_radius = 0.5, accuracy = 'normal', rad_file = None
         dimensionality = 0
 
     return int(channels), int(dimensionality)
+
     
 
 def write_rad_file(d, path, filename):
@@ -318,6 +322,7 @@ def write_mass_file(d, path, filename):
     return
     
 
+
 def read_msd(filepath, skiprows = 1):
     '''
     This function reads a typical msd output file and returns t, msd
@@ -341,14 +346,14 @@ def plot_msd(save = False, show = False, t = None, msd = None, t_units = 'ps', m
           file = file to read from if t and msd are not specified
           slope = Turns slope on/off
           T = Temperature for legend
-          f = fraction of data to discard for equilibration  
+          f = fraction of data to discard for equilibration
     '''
-    
+
     if (t == None or msd == None):
         try:
             t, msd = read_msd(file, skiprows = skiprows)
         except:
-            print "Enter either t,msd or file to read from"
+            raise NoInput, "Enter either t,msd or file to read from"
 
     if T != None:
         plt.plot(t, msd, label = '{0} K'.format(T))
@@ -356,8 +361,8 @@ def plot_msd(save = False, show = False, t = None, msd = None, t_units = 'ps', m
         plt.plot(t,msd)
     if slope == True:
         # Cutting out the equilibration data and using the rest to fit slope
-        t_cut = t[len(t)*f:]    
-        msd_cut= msd[len(t)*f:] 
+        t_cut = t[len(t)*f:]
+        msd_cut= msd[len(t)*f:]
 
         # Fitting using linear regression and 95 percent confidence intervals - p = [slope, intercept]
 
@@ -373,13 +378,13 @@ def plot_msd(save = False, show = False, t = None, msd = None, t_units = 'ps', m
 
     if T !=None:
         plt.legend()
-        
+
     if save != False:
         plt.savefig(save)
-    
+
     if show == True:
         plt.show()
-    
+
     if slope == True:
         return p, pint, se
 
@@ -387,15 +392,16 @@ def plot_msd(save = False, show = False, t = None, msd = None, t_units = 'ps', m
 def get_D(slope, interval = None):
 
     D = slope/6. * 1e-4 # in cm^2/s
-    
-    if interval == None: 
+
+    if interval == None:
         return D
 
     else:
-        Dint =  np.array(int)/6. * 1e-4 
+        Dint =  np.array(int)/6. * 1e-4
         return D, Dint
 
-def get_conductivity(atoms, T,  D = None, slope = None, interval = None,  species = 'all'):
+
+def get_conductivity(atoms, T, D = None, slope = None, interval = None,  species = 'all'):
 
     if D == None:
         if interval == None:
@@ -406,10 +412,10 @@ def get_conductivity(atoms, T,  D = None, slope = None, interval = None,  specie
     # Calculating Sigma
 
     q = 1.60e-19 # Coulombs
-    
+
     kb = 1.3806488e-23 # Boltzmann Constant in SI units
 
-    if species !='all': 
+    if species !='all':
         N = len([atom for atom in atoms if atom.symbol == species])
     else:
         N = len(atoms)
@@ -420,7 +426,7 @@ def get_conductivity(atoms, T,  D = None, slope = None, interval = None,  specie
 
     sigma = prefactor * D
 
-    if interval == None: 
+    if interval == None:
         return sigma
 
     else:
@@ -428,19 +434,18 @@ def get_conductivity(atoms, T,  D = None, slope = None, interval = None,  specie
         return sigma, sigma_int
 
 
-def plot_lnD_v_Tinv(Ds, Ts, save = False):
+def plot_logD_v_Tinv(Ds, Ts, save = False):
 
 
-    lnD = np.log(np.array(D))
-    Tinv = 1000./np.array(Ts)
+    ln_D = np.log10(np.array(Ds))
+    T_inv = 1000./np.array(Ts)
 
-    plt.plot(lnD, Tinv, 'ro')
+    plt.plot(T_inv, ln_D, 'ro')
 
     T_inv_stack = np.column_stack([T_inv**1, T_inv**0])
 
-    T_inv_stack = np.column_stack([T_inv_cut**1, T_inv_cut**0])
     p, pint, se = regress(T_inv_stack, ln_D, 0.05)
-    
+
     ln_D_fit = np.dot(T_inv_stack, p)
 
     plt.plot(T_inv, ln_D_fit)
@@ -456,6 +461,40 @@ def plot_lnD_v_Tinv(Ds, Ts, save = False):
     R = 5.189e19
     Na = 6.023e23
     E_act = -slope*R/Na
-    E_act_int = - np.array(pint[0]) * R/Na 
+    E_act_int = - np.array(pint[0]) * R/Na
+
+    return E_act, E_act_int
+
+
+def plot_lnD_v_Tinv(Ds, Ts, save = False):
+
+
+    ln_D = np.log(np.array(Ds))
+    T_inv = 1000./np.array(Ts)
+
+    plt.plot(T_inv, ln_D, 'ro')
+
+    T_inv_stack = np.column_stack([T_inv**1, T_inv**0])
+
+    p, pint, se = regress(T_inv_stack, ln_D, 0.05)
+
+    ln_D_fit = np.dot(T_inv_stack, p)
+
+    plt.plot(T_inv, ln_D_fit)
+    plt.xlabel('1000/T (1/K)')
+    plt.ylabel('ln(D)')
+
+    if save != False:
+
+        plt.savefig(save)
+
+    slope = p[0]
+
+    R = 5.189e19
+    Na = 6.023e23
+    E_act = -slope*R/Na
+
+    E_act_int = - np.array(pint[0]) * R/Na
+
 
     return E_act, E_act_int
