@@ -35,7 +35,9 @@ def remove_duplicates(files, separator):
     ICSD structures where different ids might have the same structure.
     
     Reutrns dict of structure names mapped to a single file.
-    This just assigns the last found structure to the file name for now.    
+    This just assigns the last found structure to the file name for now.
+
+    Warning: Matching is only done by formula name. This will also remove all polymorphs of the structure with the same formula, but supercells with unreduced formula wont be removed. 
     '''
 
     names = [file.strip('.cif').split(separator)[-1] for file in files]
@@ -110,7 +112,7 @@ def prepare_for_zeo(dir, remove_duplicates = False, separator = None):
     ./no-rad - structures with species having no corresponding ionic radii in pymatgen database
     ./fails - structures which cannot be assigned oxidation states
 
-    If remove_duplicates is set to true, it runs the files through remove_duplicates.
+    If remove_duplicates is set to true, it runs the files through remove_duplicates. Files pulled out of the database are of the format <id><speparator><formula>. Where the separator is usually '_' or '-'.
     '''
 
     # TODO maybe let the user specify the location of the new directories
@@ -218,7 +220,7 @@ def perform_channel_analysis(dir, prepared = False):
         
     return structs, sizes
 
-def cif2cssr(cif, remove = ['Li+']):
+def cif2cssr(cif, outfile = None, remove = ['Li+']):
     '''
     Converts cif files to Zeo++ CSSR files, deletes species specified in remove. 
     Must have pymatgen installed. Structure must be ordered and oxidation state decorated
@@ -229,9 +231,12 @@ def cif2cssr(cif, remove = ['Li+']):
     if remove != None:
         s.remove_species(remove)
 
+    if outfile == None:
+        outfile = filename + '.cssr'
+        
     try:
         cssr = ZeoCssr(s)
-        cssr.write_file('{0}.cssr'.format(filename))
+        cssr.write_file(outfile)
     except:
         cssr = None
     return cssr

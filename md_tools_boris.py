@@ -412,21 +412,26 @@ def read_qe_output(filename):
         if 'number of atoms/cell' in line:
             natoms = int(line.split()[4])
         if 'lattice parameter' in line:
-            a0 = float(line.split()[4])
+            a0 = float(line.split()[4])*0.529177249
         if 'crystal axes' in line:
             # inital cell typically looks like   a(1) = ( -6.403270  6.403270  6.403270 )
+             
             # we extract this three times, assuming Angstrom units (ibrav=0)
+            # Prateek: In my case this is in units of alat
             cell = []
             for i in range(3):
                 data = f.readline().split()    # skip ahead and read new line
-                cell += [[float(data[3]), float(data[4]), float(data[5])]]
+                cell += [[float(data[3])*a0, float(data[4])*a0, float(data[5])*a0]]
         if 'site n' in line:  # read initial coordinates
             atoms = Atoms(pbc=True) # initiate first structure, may appear twice in the header
             for i in range(natoms):
                 data = f.readline().split()  # skip ahead and read new line
                 # typically looks like this. Careful with spaces for >100 atoms!!
                 #   12           Li  tau( 12) = (   0.0000000   3.2016350   4.8024525  )
-                atoms += Atom(str(data[1]), ([float(data[6]), float(data[7]), float(data[8])]))
+
+                # Prateek: Might also look like:
+                #    12           Li0  tau( 12) = (   0.0000000   3.2016350   4.8024525  )
+                atoms += Atom((filter(lambda c: c.isalpha(), str(data[1]))), ([float(data[6]), float(data[7]), float(data[8])]))
             if 'cryst' in line:
                 atoms.set_cell(cell, scale_atoms = True)  # use the latest found cell, in this case the first
             elif 'a_0' in line:
@@ -441,7 +446,9 @@ def read_qe_output(filename):
             for i in range(natoms):
                 data = f.readline().split()  # skip ahead and read new line
                 # typically looks like this:    La       0.250000000   0.875000000   0.625000000
-                atoms += Atom(str(data[0]), ([float(data[1]), float(data[2]), float(data[3])]))
+                # Prateek: It might also look like:    La0       0.250000000   0.875000000   0.625000000
+                
+                atoms += Atom((filter(lambda c: c.isalpha(), str(data[0]))), ([float(data[1]), float(data[2]), float(data[3])]))
             if 'crystal' in line:
                 atoms.set_cell(cell, scale_atoms = True)  # use the latest found cell
             elif 'angstrom' in line:
