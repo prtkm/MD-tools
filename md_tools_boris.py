@@ -55,8 +55,14 @@ def read_pickle(filename):
 #prototype = read_pickle("C:\Documents and Settings\kyb5pal\My Documents\Battery\Ion conductors\Structures\MD\garnet_prototype.pkl")
 # prototype = read_pickle("garnet_prototype.pkl")
 
-def mean_square_displacement(traj):
+
+
+# Prateek: This function is essentially similar to the new displacement function
+
+'''
+def displacement(traj):
      # Compute how far each atom moves in an MD run
+    # Prateek: Changed name of this function
     Images = range(len(traj))
     Atoms = range(len(traj[0]))
  #  Li_atoms = [i for i in Atoms if traj[0].get_chemical_symbols()[i]=='Li']
@@ -66,23 +72,52 @@ def mean_square_displacement(traj):
         for i in Atoms:
             dist[t,i] = linalg.norm(traj[t].get_positions()[i] - traj[0].get_positions()[i])
     return dist
+'''
 
-def non_Li_displacement(traj):
+def displacement(traj, ion = None):
     '''
-    Compute the distance non Li ions have moved from first to last image
-    NOTE: here traj is a list of the first and the last atoms objects
-
+    Compute the distance a particular ion has moved. Defaults to include all atoms.
     '''
 
     Images = range(len(traj))
     Atoms = range(len(traj[0]))
-    non_Li_atoms = [i for i in Atoms if traj[0].get_chemical_symbols()[i]!='Li']
-    dist = [[linalg.norm(traj[t].get_positions()[i] - traj[0].get_positions()[i]) for i in non_Li_atoms] for t in Images]
-
+    if ion != None:
+        wanted_atoms = [i for i in Atoms if traj[0].get_chemical_symbols()[i] == ion]
+    else:
+        wanted_atoms = Atoms
+    dist = [[linalg.norm(traj[t].get_positions()[i] - traj[0].get_positions()[i]) for i in wanted_atoms] for t in Images]
 
     return dist
 
 
+def excluded_displacement(traj, ion = 'Li'):
+    '''
+    Compute the distances ions other than the one specified have moved. Defaults to Li ions to be removed.
+    '''
+
+    Images = range(len(traj))
+    Atoms = range(len(traj[0]))
+    wanted_atoms = [i for i in Atoms if traj[0].get_chemical_symbols()[i]!= ion]
+    dist = [[linalg.norm(traj[t].get_positions()[i] - traj[0].get_positions()[i]) for i in wanted_atoms] for t in Images]
+
+    return dist
+
+
+
+def mean_square_displacement(traj, ion = None):
+
+    '''
+    Given a trajectory, calculate the mean square displacement of the ion specified.
+    Defaults to return total mean square displacement.
+    '''
+
+    dist = displacement(traj, ion)
+    msd = []
+    
+    for d in dist:
+        msd.append(sum(np.array(d)*np.array(d))/len(dist[0]))
+
+    return msd
 
 
 
