@@ -422,7 +422,7 @@ def read_qe_output(filename):
             for i in range(3):
                 data = f.readline().split()    # skip ahead and read new line
                 cell += [[float(data[3])*a0, float(data[4])*a0, float(data[5])*a0]]
-        if 'site n' in line:  # read initial coordinates
+        if 'site n' in line:        # read initial coordinates
             atoms = Atoms(pbc=True) # initiate first structure, may appear twice in the header
             for i in range(natoms):
                 data = f.readline().split()  # skip ahead and read new line
@@ -431,11 +431,16 @@ def read_qe_output(filename):
 
                 # Prateek: Might also look like:
                 #    12           Li0  tau( 12) = (   0.0000000   3.2016350   4.8024525  )
-                atoms += Atom((filter(lambda c: c.isalpha(), str(data[1]))), ([float(data[6]), float(data[7]), float(data[8])]))
+                # Prateek: For some reason my intial positions are written in units of alat
+
+                
+                atoms += Atom((filter(lambda c: c.isalpha(), str(data[1]))), ([float(data[6]) * a0, float(data[7]) * a0, float(data[8])* a0]))
             if 'cryst' in line:
                 atoms.set_cell(cell, scale_atoms = True)  # use the latest found cell, in this case the first
-            elif 'a_0' in line:
-                atoms.set_cell(cell, scale_atoms = False) # assume a0=1A
+            elif 'a_0' or 'alat' in line:
+                atoms.set_cell(cell, scale_atoms = False) 
+
+                
         if 'CELL_PARAMETERS' in line:
             cell = []
             for i in range(3):
