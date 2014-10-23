@@ -37,7 +37,7 @@ def remove_duplicates(files, separator):
     Reutrns dict of structure names mapped to a single file.
     This just assigns the last found structure to the file name for now.
 
-    Warning: Matching is only done by formula name. This will also remove all polymorphs of the structure with the same formula, but supercells with unreduced formula wont be removed. 
+    Warning: Matching is only done by formula name. This will also remove all polymorphs of the structure with the same formula, but supercells with unreduced formula wont be removed. Handle with care! 
     '''
 
     names = [file.strip('.cif').split(separator)[-1] for file in files]
@@ -112,7 +112,7 @@ def prepare_for_zeo(dir, remove_duplicates = False, separator = None):
     ./no-rad - structures with species having no corresponding ionic radii in pymatgen database
     ./fails - structures which cannot be assigned oxidation states
 
-    If remove_duplicates is set to true, it runs the files through remove_duplicates. Files pulled out of the database are of the format <id><speparator><formula>. Where the separator is usually '_' or '-'.
+    If remove_duplicates is set to true, it runs the files through remove_duplicates. Files pulled out of the database are of the format <id><speparator><formula>. The separator is usually '_' or '-'.
     '''
 
     # TODO maybe let the user specify the location of the new directories
@@ -220,6 +220,7 @@ def perform_channel_analysis(dir, prepared = False):
         
     return structs, sizes
 
+   
 def cif2cssr(cif, outfile = None, remove = ['Li+']):
     '''
     Converts cif files to Zeo++ CSSR files, deletes species specified in remove. 
@@ -282,9 +283,8 @@ def find_channel_size(file, accuracy = 'normal'):
     return free_sp_rad
 
 
-def find_channels(file, probe_radius = 0.5, accuracy = 'normal', rad_file = None):
+def find_channel_dimensionality(file, probe_radius = 0.5, accuracy = 'normal', use_rad_mass = False):
 
-# TODO this needs to be rewritten for mass input
     '''
     Use zeo++ to find conducting channels in given structure- cif or cssr. Must specify zeo executable as $ZEO in .bashrc for this to work.
     '''
@@ -301,17 +301,17 @@ def find_channels(file, probe_radius = 0.5, accuracy = 'normal', rad_file = None
 
         file = '{0}.cssr'.format(filename)
 
+    cmd = '$ZEO -chan {0}'.format(probe_radius)
+    
+    if accuracy =='high':
 
-    if accuracy !='high':
-        if rad_file == None:
-            cmd = '$ZEO -chan {0} {1}'.format(probe_radius, file)
-        else:
-            cmd = '$ZEO -nomass -r {2} -chan {0} {1}'.format(probe_radius, file, rad_file)
-    else:
-        if rad_file == None:
-            cmd = '$ZEO -ha -chan {0} {1}'.format(probe_radius, file)
-        else:
-            cmd = '$ZEO -ha -r {2} -chan {0} {1}'.format(probe_radius, file, rad_file)
+        cmd+=' -ha'
+        
+    if use_rad_mass:
+
+        cmd+= ' -mass {0}.mass -r {0}.rad'.format(filename)
+        
+    cmd+= ' {0}'.format(file)
 
     p = Popen(cmd, shell =True, stdout =PIPE, stderr= PIPE)
     out, err = p.communicate()
@@ -377,27 +377,22 @@ def read_msd(filepath, skiprows = 1):
 
 
 
-def plot_msd(save = False, show = False, t = None, msd = None, t_units = 'ps', msd_units = '$\AA^{2}$', file = None, skiprows = 1, slope = True, T = None, f = 0.5):
+def plot_msd(t, msd,  f = 0.25, skiprows = 0, save = False, show = False, t_units = 'ps', msd_units = '$\AA^{2}$',  slope = True, T = None, legend = False, label = None):
+
     # TODO make this simpler!!!
     '''
     Plots a mean square displacement trajectory
     Args: save = filepath to save
           show = Turns off/on plt.show()
           Note: Both savefig and show can be done in the main function also
-          file = file to read from if t and msd are not specified
           slope = Turns slope on/off
           T = Temperature for legend
           f = fraction of data to discard for equilibration
+          Units are only for the labels
     '''
-
-    if (t == None or msd == None):
-        try:
-            t, msd = read_msd(file, skiprows = skiprows)
-        except:
-            raise NoInput, "Enter either t,msd or file to read from"
-
-    if T != None:
-        plt.plot(t, msd, label = '{0} K'.format(T))
+    
+    if label!= None:
+        plt.plot(t, msd, label = label)
     else:
         plt.plot(t,msd)
     if slope == True:
@@ -417,8 +412,8 @@ def plot_msd(save = False, show = False, t = None, msd = None, t_units = 'ps', m
     plt.xlabel('Time ({0})'.format(t_units))
     plt.ylabel('MSD ({0})'.format(msd_units))
 
-    if T !=None:
-        plt.legend()
+    if legend ==True:
+        plt.legend(loc = 'best')
 
     if save != False:
         plt.savefig(save)
@@ -438,7 +433,7 @@ def get_D(slope, interval = None):
         return D
 
     else:
-        Dint =  np.array(int)/6. * 1e-4
+        Dint =  np.array(interval)/6. * 1e-4
         return D, Dint
 
 

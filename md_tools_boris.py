@@ -103,7 +103,6 @@ def excluded_displacement(traj, ion = 'Li'):
     return dist
 
 
-
 def mean_square_displacement(traj, ion = None):
 
     '''
@@ -431,7 +430,9 @@ def read_qe_output(filename):
     """Import Espresso-4.2 type file.
     Reads unitcells, atom positions, energies, and forces from the output file.
     """
+    # Careful: This needs to be double checked depending on the way cells and positions are written in the output file.
 
+    
     from ase.calculators.singlepoint import SinglePointCalculator
 
     if isinstance(filename, str): #check if filename is a string
