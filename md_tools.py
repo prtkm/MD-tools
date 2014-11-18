@@ -329,7 +329,58 @@ def find_channel_dimensionality(file, probe_radius = 0.5, accuracy = 'normal', u
     return int(channels), int(dimensionality)
 
     
+def find_accessible_volume(file, probe_radius = 0.5, chan_radius = 0.5, nsamples=1000, accuracy = 'normal', use_rad_mass=False):
 
+    '''
+    Use zeo++ to find accessible channel volume in given structure- cif or cssr. Must specify zeo executable as $ZEO in .bashrc for this to work.
+
+    Returns: accessible_volume_frac, channel_vol_frac, npockets, pocket_vol_frac
+    '''
+
+    filename, ext = file.rsplit('.',1)
+
+    if ext == 'cif':
+
+        cssr = cif2cssr(file)
+
+        if cssr == None:
+
+            return None, None
+
+        file = '{0}.cssr'.format(filename)
+
+    cmd = '$ZEO -vol {0} {1} {2}'.format(probe_radius, chan_radius, nsamples)
+    
+    if accuracy =='high':
+
+        cmd+=' -ha'
+        
+    if use_rad_mass:
+
+        cmd+= ' -mass {0}.mass -r {0}.rad'.format(filename)
+        
+    cmd+= ' {0}'.format(file)
+
+    p = Popen(cmd, shell =True, stdout =PIPE, stderr= PIPE)
+    out, err = p.communicate()
+    if err !='':
+        raise Exception('\n\n{0}'.format(err))
+
+    f = open('{0}.vol'.format(filename), 'r')
+    lines = f.readlines()
+
+    AVF = float(lines[0].split()[9])
+    V = float(lines[0].split()[3])
+    CV = float(lines[1].split()[3])
+    CVF = CV/V
+    
+    NP = float(lines[2].split()[1])
+    PV = sum([float(vol) for vol in lines[2].split()[3:]])
+    PVF = PV/V    
+
+    return AVF, CVF, NP, PVF
+ 
+    
 def write_rad_file(d, path, filename):
     '''
     d = dict of element and ionic radius (element should ideally be charge decorated, but this is not necessary)
