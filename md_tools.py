@@ -448,9 +448,8 @@ def plot_msd(t, msd,  f = 0.25, skiprows = 0, save = False, show = False, t_unit
         plt.plot(t,msd)
     if slope == True:
         # Cutting out the equilibration data and using the rest to fit slope
-        t_cut = t[len(t)*f:]
-        msd_cut= msd[len(t)*f:]
-
+        t_cut = t[int(len(t)*f):]
+        msd_cut= msd[int(len(t)*f):]
         # Fitting using linear regression and 95 percent confidence intervals - p = [slope, intercept]
 
         t_stack = np.column_stack([t_cut**1, t_cut**0])
