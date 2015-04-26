@@ -584,3 +584,14 @@ def plot_lnD_v_Tinv(Ds, Ts, save = False):
 
 
     return E_act, E_act_int
+
+def is_MSD_dir(directory):
+    '''
+    Checks if pwscf.msd.dat is present for a given calculation
+    '''
+    pwscfMSD = os.path.join(directory, 'pwscf.msd.dat')
+
+    if os.path.exists(pwscfMSD):
+        return True
+    
+return False
