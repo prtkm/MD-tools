@@ -8,16 +8,17 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from pycse import regress
-
 import pymatgen as mg
 from pymatgen.io.zeoio import *
-from pymatgen.io.aseio import AseAtomsAdaptor as aseio
-
+import glob
+from espresso import Espresso
+import bisect
 from ase.io import read
 from subprocess import Popen, PIPE
 from pymatgen.transformations.standard_transformations import AutoOxiStateDecorationTransformation as oxi
 import os
 import shutil
+
 
 def get_cif_files(dir):
 
@@ -443,9 +444,9 @@ def plot_msd(t, msd,  f = 0.25, skiprows = 0, save = False, show = False, t_unit
     '''
     
     if label!= None:
-        plt.plot(t, msd, label = label)
+        plt.plot(t, msd, label = label, lw=2.5)
     else:
-        plt.plot(t,msd)
+        plt.plot(t,msd, lw=2.5)
     if slope == True:
         # Cutting out the equilibration data and using the rest to fit slope
         t_cut = t[int(len(t)*f):]
@@ -456,7 +457,7 @@ def plot_msd(t, msd,  f = 0.25, skiprows = 0, save = False, show = False, t_unit
         p, pint, se = regress(t_stack, msd_cut, 0.05)
         msd_fit = np.dot(t_stack,p)
 
-        plt.plot(t_cut, msd_fit)
+        plt.plot(t_cut, msd_fit, 'r--',lw=2.5)
 
 
     plt.xlabel('Time ({0})'.format(t_units))
@@ -595,3 +596,91 @@ def is_MSD_dir(directory):
         return True
     
     return False
+
+def dump_conductivities(rootdir, dumpfilepath, imagedir):
+    '''
+    Dump conductivities of all calculations within a root directory
+    '''
+
+    all_structures = glob.glob('{rootdir}/mp*'.format(**locals()))
+
+    dumpfile = open(dumpfilepath, 'w')
+
+    dumpfile.write(rootdir)
+    dumpfile.write('\n')
+    for structure in all_structures:
+
+        key  = structure.split('/')[-1]
+        calcs = os.listdir('{structure}'.format(**locals()))
+
+        if 'delithiated' not in rootdir:
+
+            try:   
+                atoms = read('/lustre/atlas/proj-shared/mat045/Prateek/projwork/mp-set1/cifs-updated/{0}.cif'.format(key))
+            except:
+                atoms = read('/lustre/atlas/proj-shared/mat045/Prateek/projwork/mp-set1/cifs/{0}.cif'.format(key))   
+
+
+            if 'increased' in rootdir:
+                factor = 1.1 ** (1./ 3.)
+                cell0 = atoms.get_cell()
+                atoms.set_cell(cell0 * factor, scale_atoms=True)
+            
+            elif 'decreased' in rootdir:
+
+                factor = 0.9 ** (1./3.)
+                cell0 = atoms.get_cell()
+                atoms.set_cell(cell0 * factor, scale_atoms=True)
+
+        else:
+            print True
+            wd = 'mp-set1/delithiated-relax/0.25/{0}'.format(key)
+            with Espresso(wd) as calc:
+                atoms = calc.get_atoms()
+                
+        
+        plt.figure()
+        for calc in calcs:
+            T = float(calc.split('-')[1])
+
+            try:   
+                t, msd = np.loadtxt('{structure}/{calc}/tmp/pwscf.msd.dat'.format(**locals()), unpack=True)
+
+                total_time = t[-1]
+
+                msd = msd * 0.529177249 ** 2
+
+                # Get the first index for t > 1.5
+                if not total_time > 1.5:
+                    sigma = None
+                    sigma_int = None
+                    continue
+
+                i = bisect.bisect(t, 1.5)
+
+                # Fraction of data to exclude
+                f = float(i)/len(t)
+
+                p, pint, se = plot_msd(t, msd, f=f, slope=True, label=calc)
+            
+                slope = p[0]
+                slope_int = pint[0]
+                
+                sigma, sigma_int = get_conductivity(atoms, T, slope=slope, interval=slope_int)
+            
+            #except(TypeError):
+            #    sigma = None
+            #    sigma_int = None
+           
+            except (IndexError, IOError, ValueError):
+                total_time = None
+                sigma = None
+                sigma_int = None
+
+            dumpfile.write('{0}\t{1}\t{2}\t{3}\t{4}\n'.format(structure, calc, total_time, sigma, sigma_int))
+
+        plt.title(key)
+        plt.legend(loc='best', fontsize=10)
+        plt.savefig('{imagedir}/{structure}.png'.format(**locals()))
+        plt.close()
+    dumpfile.close()
